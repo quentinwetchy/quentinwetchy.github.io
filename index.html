@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quentin — Grafikdesign</title>
+  <meta name="description" content="Grafikdesign, Konzertposter und visuelle Arbeiten von Quentin.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='black'/%3E%3Ctext x='6' y='24' fill='white' font-size='25' font-family='Arial'%3EQ%3C/text%3E%3C/svg%3E">
+  <style>
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: white; color: #161616; font-family: Arial, Helvetica, sans-serif; }
+    header { max-width: 1440px; margin: auto; padding: 56px 48px 40px; display: flex; align-items: baseline; justify-content: space-between; gap: 24px; }
+    .name { color: inherit; text-decoration: none; font-size: 24px; font-weight: 700; letter-spacing: -.7px; }
+    nav { display: flex; gap: 28px; }
+    nav a, footer a { color: inherit; text-underline-offset: 5px; font-size: 16px; }
+    nav a { text-decoration: none; }
+    nav a:hover, nav a:focus-visible { text-decoration: underline; }
+    main { max-width: 1440px; margin: auto; padding: 0 48px; }
+    h1 { margin: 0 0 26px; font-size: 16px; font-weight: 400; }
+    .gallery { columns: 3; column-gap: 22px; }
+    .work { display: block; width: 100%; padding: 0; margin: 0 0 22px; border: 0; background: #f1f1f1; cursor: zoom-in; break-inside: avoid; }
+    .work img { display: block; width: 100%; height: auto; }
+    .placeholder { display: flex; min-height: 320px; padding: 32px; align-items: center; justify-content: center; flex-direction: column; gap: 12px; color: #555; font-size: 16px; }
+    .placeholder small { font-size: 14px; overflow-wrap: anywhere; }
+    .work:nth-child(2n) .placeholder { min-height: 440px; }
+    .work:disabled { cursor: default; }
+    footer { max-width: 1440px; margin: 64px auto 0; padding: 36px 48px 56px; border-top: 1px solid #ddd; }
+    footer h2 { margin: 0 0 16px; font-size: 20px; }
+    footer p { font-size: 16px; line-height: 1.6; }
+    dialog { border: 0; padding: 0; background: transparent; color: white; max-width: 96vw; max-height: 96dvh; }
+    dialog::backdrop { background: rgb(0 0 0 / .92); }
+    .viewer { margin: 0; padding: 42px 12px 12px; }
+    .viewer img { display: block; max-width: 88vw; max-height: 78dvh; object-fit: contain; margin: auto; }
+    figcaption { text-align: center; margin-top: 12px; font-size: 16px; }
+    .close { position: absolute; right: 8px; top: 0; background: transparent; color: white; border: 0; padding: 8px; font-size: 16px; cursor: pointer; }
+    :focus-visible { outline: 3px solid #3868d9; outline-offset: 5px; }
+    @media (max-width: 900px) { .gallery { columns: 2; } header { padding-top: 36px; } }
+    @media (max-width: 560px) { header { padding: 28px 20px 32px; flex-wrap: wrap; } main { padding: 0 20px; } .gallery { columns: 1; } footer { padding: 28px 20px 40px; } .name { font-size: 22px; } }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <header>
+    <!-- Deinen vollständigen Namen hier eintragen. -->
+    <a class="name" href="./">QUENTIN</a>
+    <nav aria-label="Hauptnavigation"><a href="#arbeiten">Work</a><a href="#kontakt">Contact</a></nav>
+  </header>
+  <main id="arbeiten">
+    <h1>Graphic Design</h1>
+    <div class="gallery" id="gallery"></div>
+    <noscript>Bitte aktiviere JavaScript, um die Bildergalerie zu sehen.</noscript>
+  </main>
+  <footer id="kontakt">
+    <h2>Kontakt</h2>
+    <p>Quentin · Grafikdesign · Wien</p>
+    <!-- Durch deine echte E-Mail ersetzen und den Link wieder aktivieren:
+    <a href="mailto:deine@email.at">deine@email.at</a>
+    -->
+    <p>E-Mail-Adresse folgt.</p>
+  </footer>
+  <dialog id="lightbox" aria-label="Vergrößerte Arbeit">
+    <button class="close" type="button" autofocus>Schließen ×</button>
+    <figure class="viewer"><img alt=""><figcaption></figcaption></figure>
+  </dialog>
+  <script>
+    // HIER DEINE ARBEITEN EINTRAGEN.
+    // Bilder in den Ordner "bilder" legen. Groß-/Kleinschreibung beachten.
+    // Jede Zeile entspricht einem Bild; Reihenfolge hier ändern.
+    const works = [
+      { image: 'bilder/arbeit-01.jpg', title: 'Konzertposter 01' },
+      { image: 'bilder/arbeit-02.jpg', title: 'Konzertposter 02' },
+      { image: 'bilder/arbeit-03.jpg', title: 'Coverdesign' },
+      { image: 'bilder/arbeit-04.jpg', title: 'Konzertposter 03' },
+      { image: 'bilder/arbeit-05.jpg', title: 'Merchdesign' },
+      { image: 'bilder/arbeit-06.jpg', title: 'Visuelle Gestaltung' }
+    ];
+    const gallery = document.querySelector('#gallery');
+    const lightbox = document.querySelector('#lightbox');
+    const largeImage = lightbox.querySelector('img');
+    works.forEach(work => {
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'work';
+      button.setAttribute('aria-label', work.title + ' vergrößern');
+      const img = document.createElement('img');
+      img.alt = work.title; img.loading = 'lazy'; img.decoding = 'async';
+      img.addEventListener('error', () => {
+        const placeholder = document.createElement('span');
+        placeholder.className = 'placeholder';
+        const label = document.createElement('span'); label.textContent = 'Hier kommt deine Arbeit hin';
+        const file = document.createElement('small'); file.textContent = work.image;
+        placeholder.append(label, file); button.replaceChildren(placeholder); button.disabled = true;
+      }, { once: true });
+      img.src = work.image;
+      button.append(img);
+      button.addEventListener('click', () => {
+        largeImage.src = work.image; largeImage.alt = work.title;
+        lightbox.querySelector('figcaption').textContent = work.title;
+        lightbox.showModal();
+      });
+      gallery.append(button);
+    });
+    lightbox.querySelector('.close').addEventListener('click', () => lightbox.close());
+    lightbox.addEventListener('click', event => { if (event.target === lightbox) lightbox.close(); });
+  </script>
+</body>
+</html>
