@@ -28,16 +28,23 @@
     footer { max-width: 1440px; margin: 64px auto 0; padding: 36px 48px 56px; border-top: 1px solid #ddd; }
     footer h2 { margin: 0 0 16px; font-size: 20px; }
     footer p { font-size: 16px; line-height: 1.6; }
-    dialog { border: 0; padding: 0; background: transparent; color: white; max-width: 96vw; max-height: 96dvh; }
-    dialog::backdrop { background: rgb(0 0 0 / .92); }
-    .viewer { margin: 0; padding: 42px 12px 12px; }
-    .viewer img { display: block; max-width: 88vw; max-height: 78dvh; object-fit: contain; margin: auto; }
-    figcaption { text-align: center; margin-top: 12px; font-size: 16px; }
-    .close { position: absolute; right: 8px; top: 0; background: transparent; color: white; border: 0; padding: 8px; font-size: 16px; cursor: pointer; }
+    body.viewer-open { overflow: hidden; }
+    dialog { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0; padding: 0; background: transparent; color: #161616; }
+    dialog::backdrop { background: rgb(255 255 255 / .48); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    .viewer { position: absolute; inset: 65px 70px 55px; margin: 0; display: grid; place-items: center; touch-action: pan-y; }
+    .viewer img { position: absolute; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 550ms ease; pointer-events: none; }
+    .viewer img.visible { opacity: 1; }
+    .caption { position: absolute; bottom: 16px; left: 60px; right: 60px; text-align: center; margin: 0; font-size: 14px; }
+    .close, .previous, .next { position: absolute; z-index: 2; background: rgb(255 255 255 / .8); color: #161616; border: 0; min-width: 44px; min-height: 44px; padding: 8px; cursor: pointer; }
+    .close { right: 16px; top: 12px; font-size: 16px; }
+    .previous, .next { top: calc(50% - 22px); font-size: 34px; font-weight: 300; line-height: 1; }
+    .previous { left: 10px; } .next { right: 10px; }
+    .previous:disabled, .next:disabled { visibility: hidden; }
     :focus-visible { outline: 3px solid #3868d9; outline-offset: 5px; }
     @media (max-width: 900px) { .gallery { columns: 2; } header { padding-top: 36px; } }
     @media (max-width: 560px) { header { padding: 28px 20px 32px; flex-wrap: wrap; } main { padding: 0 20px; } .gallery { columns: 1; } footer { padding: 28px 20px 40px; } .name { font-size: 22px; } }
-    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    @media (max-width: 560px) { .viewer { inset: 65px 45px 65px; } .previous { left: 0; } .next { right: 0; } }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .viewer img { transition: none; } }
   </style>
 </head>
 <body>
@@ -61,7 +68,10 @@
   </footer>
   <dialog id="lightbox" aria-label="Vergrößerte Arbeit">
     <button class="close" type="button" autofocus>Schließen ×</button>
-    <figure class="viewer"><img alt=""><figcaption></figcaption></figure>
+    <button class="previous" type="button" aria-label="Vorherige Arbeit">‹</button>
+    <div class="viewer"><img alt="" aria-hidden="true"><img alt="" aria-hidden="true"></div>
+    <button class="next" type="button" aria-label="Nächste Arbeit">›</button>
+    <p class="caption" aria-live="polite"></p>
   </dialog>
   <script>
     // HIER DEINE ARBEITEN EINTRAGEN.
@@ -77,31 +87,101 @@
     ];
     const gallery = document.querySelector('#gallery');
     const lightbox = document.querySelector('#lightbox');
-    const largeImage = lightbox.querySelector('img');
-    works.forEach(work => {
+    const layers = [...lightbox.querySelectorAll('.viewer img')];
+    const previous = lightbox.querySelector('.previous');
+    const next = lightbox.querySelector('.next');
+    const caption = lightbox.querySelector('.caption');
+    const available = new Set(works.map((_, index) => index));
+    let activeIndex = 0, activeLayer = 0, requestId = 0, busy = false;
+    function updateControls() {
+      const indices = [...available].sort((a, b) => a - b);
+      previous.disabled = indices.indexOf(activeIndex) <= 0;
+      next.disabled = indices.indexOf(activeIndex) >= indices.length - 1;
+    }
+    async function showWork(index, initial = false) {
+      const id = ++requestId;
+      busy = true;
+      const work = works[index];
+      const preload = new Image(); preload.src = work.image;
+      try { await preload.decode(); } catch {
+        if (id === requestId) { busy = false; caption.textContent = 'Bild konnte nicht geladen werden.'; }
+        return;
+      }
+      if (id !== requestId || !lightbox.open) return;
+      const target = initial ? activeLayer : 1 - activeLayer;
+      layers[target].src = work.image;
+      layers[target].alt = work.title;
+      if (initial) layers.forEach(layer => layer.classList.remove('visible'));
+      // Erst die neue Ebene rendern, dann beide Ebenen weich überblenden.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (id !== requestId || !lightbox.open) return;
+        layers[target].classList.add('visible');
+        layers[1 - target].classList.remove('visible');
+        layers[target].setAttribute('aria-hidden', 'false');
+        layers[1 - target].setAttribute('aria-hidden', 'true');
+        activeLayer = target; activeIndex = index;
+        caption.textContent = work.title;
+        updateControls();
+        busy = false;
+      }));
+    }
+    function navigate(direction) {
+      if (busy) return;
+      const indices = [...available].sort((a, b) => a - b);
+      const index = indices[indices.indexOf(activeIndex) + direction];
+      if (index !== undefined) showWork(index);
+    }
+    works.forEach((work, index) => {
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'work';
       button.setAttribute('aria-label', work.title + ' vergrößern');
       const img = document.createElement('img');
       img.alt = work.title; img.loading = 'lazy'; img.decoding = 'async';
       img.addEventListener('error', () => {
+        available.delete(index); if (lightbox.open) updateControls();
         const placeholder = document.createElement('span');
         placeholder.className = 'placeholder';
         const label = document.createElement('span'); label.textContent = 'Hier kommt deine Arbeit hin';
         const file = document.createElement('small'); file.textContent = work.image;
         placeholder.append(label, file); button.replaceChildren(placeholder); button.disabled = true;
       }, { once: true });
+      img.addEventListener('load', () => { available.add(index); if (lightbox.open) updateControls(); });
       img.src = work.image;
       button.append(img);
       button.addEventListener('click', () => {
-        largeImage.src = work.image; largeImage.alt = work.title;
-        lightbox.querySelector('figcaption').textContent = work.title;
-        lightbox.showModal();
+        available.add(index); activeIndex = index;
+        lightbox.showModal(); document.body.classList.add('viewer-open');
+        updateControls(); showWork(index, true);
       });
       gallery.append(button);
     });
     lightbox.querySelector('.close').addEventListener('click', () => lightbox.close());
+    previous.addEventListener('click', () => navigate(-1));
+    next.addEventListener('click', () => navigate(1));
+    lightbox.addEventListener('keydown', event => {
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault(); navigate(event.key === 'ArrowRight' ? 1 : -1);
+      }
+    });
+    lightbox.addEventListener('close', () => {
+      ++requestId; busy = false; document.body.classList.remove('viewer-open');
+      layers.forEach(layer => layer.classList.remove('visible'));
+    });
     lightbox.addEventListener('click', event => { if (event.target === lightbox) lightbox.close(); });
+    let touchStart = null;
+    const stage = lightbox.querySelector('.viewer');
+    stage.addEventListener('touchstart', event => {
+      if (event.touches.length === 1) touchStart = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+      else touchStart = null;
+    }, { passive: true });
+    stage.addEventListener('touchend', event => {
+      if (!touchStart) return;
+      const dx = event.changedTouches[0].clientX - touchStart.x;
+      const dy = event.changedTouches[0].clientY - touchStart.y;
+      touchStart = null;
+      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) navigate(dx < 0 ? 1 : -1);
+    }, { passive: true });
+    stage.addEventListener('touchcancel', () => { touchStart = null; });
   </script>
 </body>
 </html>
